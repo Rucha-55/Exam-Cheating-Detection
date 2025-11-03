@@ -11,6 +11,11 @@ import mediapipe as mp
 from threading import Lock
 import json
 from datetime import datetime
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 
@@ -273,4 +278,8 @@ def health():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Get port from environment or default to 5000
+    port = int(os.environ.get('PORT', 5000))
+    debug_mode = os.environ.get('FLASK_ENV', 'development') == 'development'
+    
+    app.run(debug=debug_mode, host='0.0.0.0', port=port)
