@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detection - Exam Cheating Detection System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <span class="logo-icon">🎓</span>
+                Exam Cheating Detection
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item"><a href="/" class="nav-link">Home</a></li>
+                <li class="nav-item active"><a href="/camera" class="nav-link">Detection</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Camera Section -->
+    <section class="camera-section">
+        <div class="container">
+            <h1 class="page-title">Real-time Cheating Detection</h1>
+            
+            <div class="camera-container">
+                <!-- Video Stream -->
+                <div class="video-wrapper">
+                    <img id="video-stream" src="{{ url_for('video_feed') }}" alt="Video Stream" class="video-stream">
+                    <div class="video-overlay" id="video-overlay">
+                        <div class="loading-spinner"></div>
+                        <p>Loading camera feed...</p>
+                    </div>
+                </div>
+
+                <!-- Control Panel -->
+                <div class="control-panel">
+                    <h2>Detection Controls</h2>
+                    
+                    <div class="control-group">
+                        <label>Recording Status</label>
+                        <div class="status-indicator" id="status-indicator">
+                            <span class="status-dot"></span>
+                            <span class="status-text">Recording</span>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <label>Session Timer</label>
+                        <div class="timer" id="timer">00:00:00</div>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn btn-success" id="start-btn" onclick="startDetection()">Start</button>
+                        <button class="btn btn-danger" id="stop-btn" onclick="stopDetection()" disabled>Stop</button>
+                        <button class="btn btn-secondary" id="save-btn" onclick="saveResults()">Save Report</button>
+                    </div>
+
+                    <hr>
+
+                    <!-- Real-time Stats -->
+                    <h3>Live Statistics</h3>
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <div class="stat-label">Cheating Score</div>
+                            <div class="stat-value" id="cheating-score">0.00</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Status</div>
+                            <div class="stat-value" id="status-value">SAFE</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Frames Processed</div>
+                            <div class="stat-value" id="frame-count">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerts Section -->
+            <div class="alerts-section">
+                <h2>Detected Indicators</h2>
+                <div class="alerts-container" id="alerts-container">
+                    <div class="no-alerts">
+                        <p>No suspicious indicators detected yet</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section">
+                <h2>Session Summary</h2>
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Indicator</th>
+                            <th>Severity</th>
+                            <th>Score</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-tbody">
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: #999;">No data yet - start detection to begin monitoring</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 Exam Cheating Detection System. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script>
+        // Initialize camera page specific functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCamera();
+            updateStats();
+        });
+
+        function initializeCamera() {
+            const videoStream = document.getElementById('video-stream');
+            const overlay = document.getElementById('video-overlay');
+            
+            videoStream.onload = function() {
+                overlay.style.display = 'none';
+            };
+            
+            videoStream.onerror = function() {
+                overlay.innerHTML = '<p style="color: red;">Error loading video stream</p>';
+            };
+        }
+
+        let sessionStartTime = null;
+        let detectionActive = false;
+        let frameCount = 0;
+
+        function startDetection() {
+            detectionActive = true;
+            sessionStartTime = Date.now();
+            document.getElementById('start-btn').disabled = true;
+            document.getElementById('stop-btn').disabled = false;
+            document.getElementById('status-indicator').style.background = '#d4edda';
+            
+            // Update timer
+            setInterval(() => {
+                if (detectionActive) {
+                    const elapsed = Math.floor((Date.now() - sessionStartTime) / 1000);
+                    const hours = Math.floor(elapsed / 3600);
+                    const minutes = Math.floor((elapsed % 3600) / 60);
+                    const seconds = elapsed % 60;
+                    document.getElementById('timer').textContent = 
+                        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                }
+            }, 1000);
+        }
+
+        function stopDetection() {
+            detectionActive = false;
+            document.getElementById('start-btn').disabled = false;
+            document.getElementById('stop-btn').disabled = true;
+            document.getElementById('status-indicator').style.background = '#f8d7da';
+        }
+
+        function updateStats() {
+            if (!detectionActive) return;
+
+            fetch('/get_results')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('cheating-score').textContent = data.cheating_score.toFixed(2);
+                    
+                    const statusText = data.warning_level === 'critical' ? '🔴 CRITICAL' :
+                                     data.warning_level === 'warning' ? '🟠 WARNING' : '🟢 SAFE';
+                    document.getElementById('status-value').textContent = statusText;
+                    
+                    // Update indicators
+                    const alertsContainer = document.getElementById('alerts-container');
+                    if (data.indicators.length > 0) {
+                        alertsContainer.innerHTML = data.indicators.map((indicator, idx) => `
+                            <div class="alert-item alert-${data.warning_level}">
+                                <span class="alert-icon">⚠️</span>
+                                <span class="alert-text">${indicator}</span>
+                                <span class="alert-time">${new Date().toLocaleTimeString()}</span>
+                            </div>
+                        `).join('');
+                    }
+                    
+                    frameCount++;
+                    document.getElementById('frame-count').textContent = frameCount;
+                });
+
+            if (detectionActive) {
+                setTimeout(updateStats, 500);
+            }
+        }
+
+        function saveResults() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                duration: document.getElementById('timer').textContent,
+                final_score: document.getElementById('cheating-score').textContent,
+                status: document.getElementById('status-value').textContent
+            };
+
+            fetch('/api/results', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                alert('Report saved successfully!');
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Start updating stats when page loads
+        setTimeout(updateStats, 500);
+    </script>
+</body>
+</html>
